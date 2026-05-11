@@ -1,0 +1,2109 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HearLink API",
+    "version": "1.0.0",
+    "description": "Programmatic access to HearLink services.",
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://app.hearlink.co.uk/api",
+      "description": "Production"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Patients",
+      "description": "Manage patient records."
+    },
+    {
+      "name": "Appointments",
+      "description": "Read appointment records."
+    },
+    {
+      "name": "Invoices",
+      "description": "Read invoice records."
+    },
+    {
+      "name": "Webhooks",
+      "description": "Webhooks send real-time HTTP POST notifications to a URL you configure whenever events occur in HearLink.\n\n## Envelope\n\nEvery delivery wraps entity data in a standard envelope:\n\n```json\n{\n  \"id\": \"evt_d290f1ee-6c54-4b01-90e6-d701748f0851\",\n  \"type\": \"patient.created\",\n  \"createdAt\": \"2026-04-10T14:30:00.000Z\",\n  \"data\": { ... }\n}\n```\n\n## Headers\n\n| Header | Description |\n|---|---|\n| `X-HearLink-Signature` | `t=<unix>,v1=<hmac-sha256>` — verify authenticity |\n| `X-HearLink-Event` | The event type, e.g. `patient.created` |\n| `X-HearLink-Delivery` | Unique ID for this delivery attempt |\n\n## Signature verification\n\nCompute `HMAC-SHA256(secret, \"{timestamp}.{raw_body}\")` and compare to the `v1` value.\n\n**Node.js example:**\n\n```js\nconst crypto = require('crypto');\n\nfunction verifySignature(rawBody, secret, signatureHeader) {\n  const [tPart, v1Part] = signatureHeader.split(',');\n  const timestamp = tPart.replace('t=', '');\n  const expected = v1Part.replace('v1=', '');\n  const computed = crypto\n    .createHmac('sha256', secret)\n    .update(`${timestamp}.${rawBody}`)\n    .digest('hex');\n  return crypto.timingSafeEqual(\n    Buffer.from(computed),\n    Buffer.from(expected),\n  );\n}\n```\n\n## Retries\n\nFailed deliveries (non-2xx or timeout after 30s) are retried up to **5 times** with exponential back-off. After **50 consecutive failures** across any events, the webhook is automatically disabled.\n\n## Data notes\n\n- All timestamps are ISO 8601 strings.\n"
+    }
+  ],
+  "paths": {
+    "/patients/{uid}": {
+      "get": {
+        "tags": [
+          "Patients"
+        ],
+        "summary": "Get a patient",
+        "description": "Retrieves a single patient by UID.",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The patient UID."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PatientData"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid patient UID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Patient not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/appointments/{uid}": {
+      "get": {
+        "tags": [
+          "Appointments"
+        ],
+        "summary": "Get an appointment",
+        "description": "Retrieves a single appointment by UID.",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The appointment UID."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AppointmentData"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid appointment UID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Appointment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/appointments/create": {
+      "post": {
+        "tags": [
+          "Appointments"
+        ],
+        "summary": "Create an appointment",
+        "description": "Creates a new appointment. The patient, appointment type, clinic, assignee, and (optional) referral must already exist.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppointmentCreateRequest"
+              },
+              "examples": {
+                "sample": {
+                  "summary": "Example appointment request",
+                  "value": {
+                    "patientId": "8d1e3d17-60a9-4b92-bf0b-4c0a4a0d3a15",
+                    "appointmentTypeId": "2a5f9a91-9c3b-4f78-9f5e-2f22d6a0e4c1",
+                    "clinicId": "a5f1b2c3-d4e5-6789-abcd-ef0123456789",
+                    "assigneeId": "c79f61b0-1dbb-4f2d-9a4e-e0b2f66b9a34",
+                    "date": "2026-05-12",
+                    "start": "09:00",
+                    "end": "09:45",
+                    "location": "clinic",
+                    "sendConfirmation": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "appointmentUid": {
+                          "type": "string",
+                          "format": "uuid"
+                        }
+                      },
+                      "required": [
+                        "appointmentUid"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or referenced entity not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invoices/{uid}": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Get an invoice",
+        "description": "Retrieves a single invoice by UID.",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The invoice UID."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/InvoiceData"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid invoice UID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Invoice not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/patients/create": {
+      "post": {
+        "tags": [
+          "Patients"
+        ],
+        "summary": "Create a patient",
+        "description": "Creates a new patient.  \n**Field groups (exactly one required per group):** - referralId or referralName - primaryClinicId or primaryClinicName - statusId or statusName",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientRequest"
+              },
+              "examples": {
+                "sample": {
+                  "summary": "Example patient request",
+                  "value": {
+                    "fullName": "John Smith",
+                    "primaryPhoneNumber": "07123456789",
+                    "emailAddress": "john.smith@example.com",
+                    "dob": "1985-07-12",
+                    "statusName": "Patient Created",
+                    "primaryClinicName": "Manchester",
+                    "referralName": "Facebook",
+                    "tracking": {
+                      "provider": "facebook",
+                      "ids": {
+                        "gclid": "123abc",
+                        "campaignId": "456def"
+                      },
+                      "utm_source": "facebook",
+                      "utm_medium": "cpc",
+                      "utm_campaign": "spring_sale"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiSuccessResponse"
+                },
+                "examples": {
+                  "sample": {
+                    "summary": "Example success response",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "patientUid": "pat_456"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                },
+                "examples": {
+                  "sample": {
+                    "summary": "Example validation error",
+                    "value": {
+                      "success": false,
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "Exactly one of [statusId, statusName] must be provided for status.",
+                        "details": {
+                          "statusId": "Both statusId and statusName provided"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
+      }
+    },
+    "schemas": {
+      "Address": {
+        "type": "object",
+        "properties": {
+          "line1": {
+            "type": "string"
+          },
+          "line2": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "postcode": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          }
+        },
+        "description": "Patient address details"
+      },
+      "Tracking": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "ids": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Key-value pairs of tracking identifiers",
+            "example": {
+              "gclid": "123abc",
+              "campaignId": "summer2025"
+            }
+          },
+          "utm_term": {
+            "type": "string"
+          },
+          "utm_campaign": {
+            "type": "string"
+          },
+          "utm_content": {
+            "type": "string"
+          },
+          "utm_medium": {
+            "type": "string"
+          },
+          "utm_source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider"
+        ],
+        "description": "Tracking/marketing information"
+      },
+      "PatientRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "address": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "referralId": {
+            "type": "string",
+            "description": "Provide exactly one of referralId or referralName"
+          },
+          "referralName": {
+            "type": "string",
+            "description": "Provide exactly one of referralId or referralName"
+          },
+          "primaryClinicId": {
+            "type": "string",
+            "description": "Provide exactly one of primaryClinicId or primaryClinicName"
+          },
+          "primaryClinicName": {
+            "type": "string",
+            "description": "Provide exactly one of primaryClinicId or primaryClinicName"
+          },
+          "statusId": {
+            "type": "string",
+            "description": "Provide exactly one of statusId or statusName"
+          },
+          "statusName": {
+            "type": "string",
+            "description": "Provide exactly one of statusId or statusName"
+          },
+          "secondaryStatusId": {
+            "type": "string",
+            "description": "Optional sub-status key within the chosen status's sub-workflow."
+          },
+          "secondaryStatusName": {
+            "type": "string",
+            "description": "Optional sub-status name within the chosen status's sub-workflow."
+          },
+          "primaryPhoneNumber": {
+            "type": "string",
+            "minLength": 1
+          },
+          "secondaryPhoneNumber": {
+            "type": "string"
+          },
+          "emailAddress": {
+            "type": "string",
+            "format": "email"
+          },
+          "dob": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Optional date of birth in YYYY-MM-DD format"
+          },
+          "age": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "gender": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "tracking": {
+            "$ref": "#/components/schemas/Tracking"
+          }
+        },
+        "required": [
+          "fullName",
+          "primaryPhoneNumber",
+          "tracking"
+        ]
+      },
+      "AppointmentCreateRequest": {
+        "type": "object",
+        "description": "Times are interpreted in the organisation's configured timezone.",
+        "properties": {
+          "patientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "appointmentTypeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "clinicId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "assigneeId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the user the appointment is assigned to."
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Appointment date in YYYY-MM-DD format."
+          },
+          "start": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}$",
+            "description": "Start time in 24-hour HH:mm format."
+          },
+          "end": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}$",
+            "description": "End time in 24-hour HH:mm format. Must be after `start`."
+          },
+          "location": {
+            "type": "string",
+            "enum": [
+              "clinic",
+              "home"
+            ]
+          },
+          "additionalNote": {
+            "type": "string"
+          },
+          "referralId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sendConfirmation": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether to send a confirmation email/SMS to the patient, subject to the appointment type's confirmation settings."
+          }
+        },
+        "required": [
+          "patientId",
+          "appointmentTypeId",
+          "clinicId",
+          "assigneeId",
+          "date",
+          "start",
+          "end",
+          "location"
+        ]
+      },
+      "ApiSuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "patientUid": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "patientUid"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "data"
+        ]
+      },
+      "ApiErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "required": [
+          "success",
+          "error"
+        ]
+      },
+      "WebhookEnvelope": {
+        "type": "object",
+        "description": "Standard envelope wrapping every webhook delivery.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique event ID prefixed with `evt_`.",
+            "example": "evt_d290f1ee-6c54-4b01-90e6-d701748f0851"
+          },
+          "type": {
+            "type": "string",
+            "description": "The event type.",
+            "example": "patient.created"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of when the event was created."
+          },
+          "data": {
+            "type": "object",
+            "description": "The entity payload. Shape varies by event type."
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "createdAt",
+          "data"
+        ]
+      },
+      "ActionTimestamp": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "by": {
+            "type": "object",
+            "properties": {
+              "uid": {
+                "type": "string"
+              },
+              "fullName": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "uid",
+              "fullName"
+            ]
+          }
+        },
+        "required": [
+          "at",
+          "by"
+        ]
+      },
+      "SlimPatientRef": {
+        "type": "object",
+        "description": "Slim patient reference included on related entities.",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "description": "UID of the patient."
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "tracking": {
+            "$ref": "#/components/schemas/Tracking"
+          }
+        },
+        "required": [
+          "uid",
+          "fullName"
+        ]
+      },
+      "PatientData": {
+        "type": "object",
+        "description": "A patient record.",
+        "properties": {
+          "uid": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "phoneNumber": {
+            "type": "string"
+          },
+          "secondaryPhoneNumber": {
+            "type": "string"
+          },
+          "emailAddress": {
+            "type": "string",
+            "format": "email"
+          },
+          "dob": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "gender": {
+            "type": "string"
+          },
+          "maritalStatus": {
+            "type": "string"
+          },
+          "referral": {
+            "type": "string",
+            "description": "UID of the lead type / referral source."
+          },
+          "referralSubType": {
+            "type": "string",
+            "description": "UID of the referral sub-type."
+          },
+          "primaryClinic": {
+            "type": "string",
+            "description": "UID of the patient's primary clinic."
+          },
+          "address": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "status": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "subStatus": {
+                "type": "string"
+              },
+              "updated": {
+                "$ref": "#/components/schemas/ActionTimestamp"
+              }
+            }
+          },
+          "contactPreference": {
+            "type": "string"
+          },
+          "contactPermissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "emergencyContactName": {
+            "type": "string"
+          },
+          "emergencyContactNumber": {
+            "type": "string"
+          },
+          "gpDetails": {
+            "type": "string"
+          },
+          "virtualServicingEnabled": {
+            "type": "boolean"
+          },
+          "lastTestDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastFittingDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "externalSystemId": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "tracking": {
+            "$ref": "#/components/schemas/Tracking"
+          },
+          "customFields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "type": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "created": {
+            "$ref": "#/components/schemas/ActionTimestamp"
+          },
+          "updated": {
+            "$ref": "#/components/schemas/ActionTimestamp"
+          }
+        },
+        "required": [
+          "uid",
+          "fullName",
+          "phoneNumber",
+          "created",
+          "updated"
+        ]
+      },
+      "AppointmentData": {
+        "type": "object",
+        "description": "An appointment record.",
+        "properties": {
+          "uid": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "description": "UID of the appointment type."
+          },
+          "clinic": {
+            "type": "string",
+            "description": "UID of the clinic."
+          },
+          "location": {
+            "type": "string",
+            "enum": [
+              "clinic",
+              "home"
+            ]
+          },
+          "assignee": {
+            "type": "object",
+            "description": "The assigned clinician.",
+            "properties": {
+              "uid": {
+                "type": "string",
+                "description": "UID of the assigned user."
+              },
+              "fullName": {
+                "type": "string"
+              }
+            }
+          },
+          "startDateTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDateTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "patient": {
+            "$ref": "#/components/schemas/SlimPatientRef"
+          },
+          "additionalNote": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "confirmed": {
+            "type": "boolean"
+          },
+          "cancelled": {
+            "type": "boolean"
+          },
+          "sendConfirmation": {
+            "type": "boolean"
+          },
+          "referral": {
+            "type": "string",
+            "description": "UID of the lead type / referral source."
+          },
+          "referralSubType": {
+            "type": "string",
+            "description": "UID of the referral sub-type."
+          },
+          "externalId": {
+            "type": "string"
+          },
+          "arrived": {
+            "type": "boolean"
+          },
+          "noShow": {
+            "type": "boolean"
+          },
+          "rescheduled": {
+            "type": "boolean"
+          },
+          "checkedOut": {
+            "type": "boolean"
+          },
+          "noAnswer": {
+            "type": "boolean"
+          },
+          "voicemailLeft": {
+            "type": "boolean"
+          },
+          "customStatuses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created": {
+            "$ref": "#/components/schemas/ActionTimestamp"
+          },
+          "updated": {
+            "$ref": "#/components/schemas/ActionTimestamp"
+          }
+        },
+        "required": [
+          "uid",
+          "type",
+          "clinic",
+          "startDateTime",
+          "endDateTime",
+          "created",
+          "updated"
+        ]
+      },
+      "InvoiceData": {
+        "type": "object",
+        "description": "An invoice record.",
+        "properties": {
+          "uid": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "invoice"
+            ]
+          },
+          "orderDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "orderNumber": {
+            "type": "string"
+          },
+          "audiologist": {
+            "type": "string",
+            "description": "Full name of the audiologist."
+          },
+          "patient": {
+            "$ref": "#/components/schemas/SlimPatientRef"
+          },
+          "status": {
+            "type": "string"
+          },
+          "discount": {
+            "type": "number"
+          },
+          "vat": {
+            "type": "number"
+          },
+          "subtotal": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "lineItems": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "Line item (shape varies by item type)."
+            }
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "billTo": {
+            "type": "string"
+          },
+          "billFrom": {
+            "type": "string"
+          },
+          "clinic": {
+            "type": "string",
+            "description": "UID of the clinic."
+          },
+          "linkedAppointment": {
+            "type": "object",
+            "description": "The appointment this invoice is linked to, if any.",
+            "properties": {
+              "uid": {
+                "type": "string",
+                "description": "UID of the appointment."
+              },
+              "typeUid": {
+                "type": "string",
+                "description": "UID of the appointment type."
+              },
+              "clinic": {
+                "type": "string",
+                "description": "UID of the clinic."
+              }
+            }
+          },
+          "additionalInformation": {
+            "type": "string"
+          },
+          "externalId": {
+            "type": "string"
+          },
+          "xeroInvoiceId": {
+            "type": "string"
+          },
+          "created": {
+            "$ref": "#/components/schemas/ActionTimestamp"
+          },
+          "updated": {
+            "$ref": "#/components/schemas/ActionTimestamp"
+          }
+        },
+        "required": [
+          "uid",
+          "orderDate",
+          "audiologist",
+          "created",
+          "updated"
+        ]
+      },
+      "TransactionData": {
+        "type": "object",
+        "description": "A transaction record.",
+        "properties": {
+          "uid": {
+            "type": "string"
+          },
+          "patient": {
+            "$ref": "#/components/schemas/SlimPatientRef"
+          },
+          "transactionType": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "method": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "orderUid": {
+            "type": "string",
+            "description": "UID of the related order/invoice."
+          },
+          "externalId": {
+            "type": "string"
+          },
+          "transactionNumber": {
+            "type": "string"
+          },
+          "created": {
+            "$ref": "#/components/schemas/ActionTimestamp"
+          },
+          "updated": {
+            "$ref": "#/components/schemas/ActionTimestamp"
+          }
+        },
+        "required": [
+          "uid",
+          "transactionType",
+          "amount",
+          "date",
+          "created",
+          "updated"
+        ]
+      },
+      "CreditNoteData": {
+        "type": "object",
+        "description": "A credit note record. The related order is referenced by `orderUid`.",
+        "properties": {
+          "uid": {
+            "type": "string"
+          },
+          "creditNoteNumber": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "orderUid": {
+            "type": "string",
+            "description": "UID of the related order/invoice."
+          },
+          "patient": {
+            "$ref": "#/components/schemas/SlimPatientRef"
+          },
+          "discount": {
+            "type": "number"
+          },
+          "vat": {
+            "type": "number"
+          },
+          "subtotal": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "lineItems": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "uid": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "number"
+                },
+                "unitPrice": {
+                  "type": "number"
+                },
+                "discount": {
+                  "type": "number"
+                },
+                "total": {
+                  "type": "number"
+                },
+                "vat": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "externalId": {
+            "type": "string"
+          },
+          "created": {
+            "$ref": "#/components/schemas/ActionTimestamp"
+          },
+          "updated": {
+            "$ref": "#/components/schemas/ActionTimestamp"
+          }
+        },
+        "required": [
+          "uid",
+          "creditNoteNumber",
+          "date",
+          "created",
+          "updated"
+        ]
+      },
+      "HearingTestData": {
+        "type": "object",
+        "description": "A hearing test record.",
+        "properties": {
+          "uid": {
+            "type": "string"
+          },
+          "clinic": {
+            "type": "string",
+            "description": "UID of the clinic."
+          },
+          "patient": {
+            "$ref": "#/components/schemas/SlimPatientRef"
+          },
+          "testDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "audiologist": {
+            "type": "string",
+            "description": "Full name of the audiologist."
+          },
+          "durationOfLoss": {
+            "type": "string"
+          },
+          "occupation": {
+            "type": "string"
+          },
+          "familyDeafness": {
+            "type": "string"
+          },
+          "audiometer": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "audiogram": {
+            "type": "object",
+            "description": "Contains `left`, `right`, and `bil` objects, each with measurement types (ac, bc, ucl, etc.) mapped to frequency-dB pairs."
+          },
+          "leftEarHealth": {
+            "type": "object",
+            "description": "Ear health observations (pinna, meatus, tm, discharge, earache, tinnitus, conductive)."
+          },
+          "rightEarHealth": {
+            "type": "object",
+            "description": "Ear health observations (pinna, meatus, tm, discharge, earache, tinnitus, conductive)."
+          },
+          "hearingLossCauses": {
+            "type": "object",
+            "description": "Flags for hearing loss causes (noise, unilateral, asymmetrical, suddenOnset, etc.)."
+          },
+          "created": {
+            "$ref": "#/components/schemas/ActionTimestamp"
+          },
+          "updated": {
+            "$ref": "#/components/schemas/ActionTimestamp"
+          }
+        },
+        "required": [
+          "uid",
+          "clinic",
+          "testDate",
+          "audiologist",
+          "audiometer",
+          "created",
+          "updated"
+        ]
+      },
+      "WebhookTestData": {
+        "type": "object",
+        "description": "Payload sent by the test webhook button.",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "This is a test webhook event from HearLink."
+          },
+          "triggeredBy": {
+            "type": "string",
+            "description": "Full name of the user who triggered the test."
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "patient.created": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Patient Created",
+        "description": "Fired when a new patient record is created.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/PatientData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "patient.updated": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Patient Updated",
+        "description": "Fired when a patient record is modified.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/PatientData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "patient.deleted": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Patient Deleted",
+        "description": "Fired when a patient record is deleted.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/PatientData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "appointment.created": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Appointment Created",
+        "description": "Fired when a new appointment is created.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/AppointmentData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "appointment.updated": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Appointment Updated",
+        "description": "Fired when an appointment is modified (including status changes like confirmed, cancelled, arrived, no-show).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/AppointmentData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "appointment.deleted": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Appointment Deleted",
+        "description": "Fired when an appointment is deleted.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/AppointmentData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "invoice.created": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Invoice Created",
+        "description": "Fired when a new invoice is created.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/InvoiceData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "invoice.updated": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Invoice Updated",
+        "description": "Fired when an invoice is modified.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/InvoiceData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "invoice.deleted": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Invoice Deleted",
+        "description": "Fired when an invoice is deleted.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/InvoiceData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "transaction.created": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Transaction Created",
+        "description": "Fired when a new transaction (payment or refund) is created.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/TransactionData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "transaction.updated": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Transaction Updated",
+        "description": "Fired when a transaction is modified.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/TransactionData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "transaction.deleted": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Transaction Deleted",
+        "description": "Fired when a transaction is deleted.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/TransactionData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "credit_note.created": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Credit Note Created",
+        "description": "Fired when a new credit note is created.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/CreditNoteData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "credit_note.updated": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Credit Note Updated",
+        "description": "Fired when a credit note is modified.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/CreditNoteData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "credit_note.deleted": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Credit Note Deleted",
+        "description": "Fired when a credit note is deleted.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/CreditNoteData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "hearing_test.created": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Hearing Test Created",
+        "description": "Fired when a new hearing test is recorded.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/HearingTestData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "hearing_test.updated": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Hearing Test Updated",
+        "description": "Fired when a hearing test is modified.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/HearingTestData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "hearing_test.deleted": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Hearing Test Deleted",
+        "description": "Fired when a hearing test is deleted.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/HearingTestData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    },
+    "webhook.test": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Test Event",
+        "description": "Sent when a user clicks the \"Test\" button in the portal. Not subscribable — always delivered to the webhook being tested.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookEnvelope"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "$ref": "#/components/schemas/WebhookTestData"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return any 2xx to acknowledge receipt."
+          }
+        }
+      }
+    }
+  }
+}
