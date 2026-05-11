@@ -1,11 +1,15 @@
 {
     "name": "@7plx/n8n-nodes-hearlink",
-    "version": "0.1.0",
-    "description": "",
+    "version": "0.0.0",
+    "description": "n8n community nodes for the HearLink API and webhooks",
     "license": "MIT",
-    "homepage": "",
+    "homepage": "https://github.com/7PLX/n8n-nodes-hearlink",
     "keywords": [
-        "n8n-community-node-package"
+        "n8n-community-node-package",
+        "n8n",
+        "hearlink",
+        "webhooks",
+        "healthcare"
     ],
     "author": {
         "name": "Sam Green",
@@ -13,17 +17,20 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/<...>/n8n-nodes-<...>.git"
+        "url": "git+https://github.com/7PLX/n8n-nodes-hearlink.git"
     },
-   "scripts": {
-		"build": "n8n-node build",
-		"build:watch": "tsc --watch",
-		"dev": "n8n-node dev",
-		"lint": "n8n-node lint",
+    "publishConfig": {
+        "access": "public"
+    },
+    "scripts": {
+        "build": "n8n-node build",
+        "build:watch": "tsc --watch",
+        "dev": "n8n-node dev",
+        "lint": "n8n-node lint",
         "lint:fix": "n8n-node lint --fix",
-		"release": "n8n-node release",
-		"prepublishOnly": "n8n-node prerelease"
-	},
+        "release": "n8n-node release",
+        "prepublishOnly": "n8n-node prerelease"
+    },
     "files": [
         "dist"
     ],
@@ -31,11 +38,12 @@
         "n8nNodesApiVersion": 1,
         "strict": true,
         "credentials": [
-            "dist/credentials/GithubIssuesApi.credentials.js",
-            "dist/credentials/GithubIssuesOAuth2Api.credentials.js"
+            "dist/credentials/HearLinkApi.credentials.js",
+            "dist/credentials/HearLinkWebhookApi.credentials.js"
         ],
         "nodes": [
-            "dist/nodes/GithubIssues/GithubIssues.node.js"
+            "dist/nodes/HearLink/HearLink.node.js",
+            "dist/nodes/HearLinkTrigger/HearLinkTrigger.node.js"
         ]
     },
     "devDependencies": {
