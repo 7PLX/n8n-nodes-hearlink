@@ -1,4 +1,10 @@
-import type { Icon, IAuthenticateGeneric, ICredentialType, INodeProperties } from 'n8n-workflow';
+import type {
+	Icon,
+	IAuthenticateGeneric,
+	ICredentialTestRequest,
+	ICredentialType,
+	INodeProperties,
+} from 'n8n-workflow';
 
 import { HEARLINK_API_BASE_URL } from '../nodes/HearLink/shared/transport';
 
@@ -43,5 +49,22 @@ export class HearLinkApi implements ICredentialType {
 				'Content-Type': 'application/json',
 			},
 		},
+	};
+
+	test: ICredentialTestRequest = {
+		request: {
+			baseURL: '={{$credentials?.baseUrl}}',
+			url: '/patients/00000000-0000-0000-0000-000000000000',
+			method: 'GET',
+		},
+		rules: [
+			{
+				type: 'responseCode',
+				properties: {
+					value: 404,
+					message: 'Connection successful.',
+				},
+			},
+		],
 	};
 }

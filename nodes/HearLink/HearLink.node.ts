@@ -2,14 +2,9 @@ import {
 	NodeApiError,
 	NodeConnectionTypes,
 	NodeOperationError,
-	type ICredentialDataDecryptedObject,
-	type ICredentialTestFunctions,
-	type ICredentialsDecrypted,
 	type IDataObject,
 	type IExecuteFunctions,
-	type IHttpRequestOptions,
 	type INodeExecutionData,
-	type INodeCredentialTestResult,
 	type INodeProperties,
 	type INodeType,
 	type INodeTypeDescription,
@@ -20,7 +15,6 @@ import {
 	cleanObject,
 	hearLinkApiRequest,
 	hearLinkPublicBookingRequest,
-	normalizeHearLinkBaseUrl,
 	simplifyHearLinkResponse,
 } from './shared/transport';
 
@@ -1007,7 +1001,6 @@ export class HearLink implements INodeType {
 			{
 				name: 'hearLinkApi',
 				required: true,
-				testedBy: 'testHearLinkApi',
 				displayOptions: {
 					show: {
 						resource: ['patient', 'appointment', 'invoice'],
@@ -1022,70 +1015,6 @@ export class HearLink implements INodeType {
 			...invoiceProperties,
 			...bookingProperties,
 		],
-	};
-
-	methods = {
-		credentialTest: {
-			async testHearLinkApi(
-				this: ICredentialTestFunctions,
-				credential: ICredentialsDecrypted<ICredentialDataDecryptedObject>,
-			): Promise<INodeCredentialTestResult> {
-				const data = credential.data ?? {};
-				const baseUrl = normalizeHearLinkBaseUrl(
-					typeof data.baseUrl === 'string' ? data.baseUrl : undefined,
-				);
-				const apiKey = typeof data.apiKey === 'string' ? data.apiKey.trim() : '';
-
-				if (!apiKey) {
-					return {
-						status: 'Error',
-						message: 'Enter an API key.',
-					};
-				}
-
-				try {
-					const credentialTestHelpers = this.helpers as typeof this.helpers & {
-						httpRequest: (options: IHttpRequestOptions) => Promise<{ statusCode?: number; status?: number }>;
-					};
-					const response = await credentialTestHelpers.httpRequest({
-						method: 'GET',
-						url: `${baseUrl}/patients/00000000-0000-0000-0000-000000000000`,
-						headers: {
-							'x-api-key': apiKey,
-							Accept: 'application/json',
-						},
-						returnFullResponse: true,
-						ignoreHttpStatusErrors: true,
-					});
-					const statusCode = response.statusCode ?? response.status ?? 0;
-
-					if (statusCode === 200 || statusCode === 404) {
-						return {
-							status: 'OK',
-							message: 'Connection successful.',
-						};
-					}
-
-					if (statusCode === 401 || statusCode === 403) {
-						return {
-							status: 'Error',
-							message: 'HearLink rejected the API key or its permissions.',
-						};
-					}
-
-					return {
-						status: 'Error',
-						message: `HearLink returned status ${statusCode}.`,
-					};
-				} catch (error) {
-					return {
-						status: 'Error',
-						message:
-							error instanceof Error ? error.message : 'Unable to connect to HearLink.',
-					};
-				}
-			},
-		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
