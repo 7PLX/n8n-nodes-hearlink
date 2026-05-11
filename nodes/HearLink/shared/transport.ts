@@ -8,6 +8,8 @@ import type {
 } from 'n8n-workflow';
 
 export const HEARLINK_API_BASE_URL = 'https://app.hearlink.co.uk/api';
+export const HEARLINK_INTERNAL_API_BASE_URL =
+	'https://europe-west2-hearlink-production.cloudfunctions.net';
 
 type HearLinkRequestContext = IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions;
 
@@ -71,15 +73,42 @@ export async function hearLinkApiRequest(
 	)) as IDataObject;
 }
 
+export async function hearLinkPublicBookingRequest(
+	this: HearLinkRequestContext,
+	method: IHttpRequestMethods,
+	path: string,
+	body?: IDataObject,
+): Promise<IDataObject> {
+	const options: IHttpRequestOptions = {
+		method,
+		url: `${HEARLINK_INTERNAL_API_BASE_URL}${path}`,
+		json: true,
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+		},
+	};
+
+	if (body && Object.keys(body).length > 0) {
+		options.body = body;
+	}
+
+	return (await this.helpers.httpRequest.call(this, options)) as IDataObject;
+}
+
 export function simplifyHearLinkResponse(response: IDataObject, simplify: boolean): IDataObject {
 	if (!simplify) {
 		return response;
 	}
 
-	const { data } = response;
+	const { data, result } = response;
 
 	if (data && typeof data === 'object' && !Array.isArray(data)) {
 		return data as IDataObject;
+	}
+
+	if (result && typeof result === 'object' && !Array.isArray(result)) {
+		return result as IDataObject;
 	}
 
 	return response;

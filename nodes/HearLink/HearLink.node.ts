@@ -19,6 +19,7 @@ import {
 import {
 	cleanObject,
 	hearLinkApiRequest,
+	hearLinkPublicBookingRequest,
 	normalizeHearLinkBaseUrl,
 	simplifyHearLinkResponse,
 } from './shared/transport';
@@ -33,6 +34,10 @@ const appointmentDisplayOptions = {
 
 const invoiceDisplayOptions = {
 	resource: ['invoice'],
+};
+
+const bookingDisplayOptions = {
+	resource: ['booking'],
 };
 
 const showForPatientGet = {
@@ -60,6 +65,16 @@ const showForInvoiceGet = {
 	operation: ['get'],
 };
 
+const showForBookingCheckSlotAvailability = {
+	resource: ['booking'],
+	operation: ['checkSlotAvailability'],
+};
+
+const showForBookingCommon = {
+	resource: ['booking'],
+	operation: ['getMonthlyAvailability', 'checkSlotAvailability'],
+};
+
 const operationProperties: INodeProperties[] = [
 	{
 		displayName: 'Resource',
@@ -70,6 +85,10 @@ const operationProperties: INodeProperties[] = [
 			{
 				name: 'Appointment',
 				value: 'appointment',
+			},
+			{
+				name: 'Booking',
+				value: 'booking',
 			},
 			{
 				name: 'Invoice',
@@ -147,6 +166,30 @@ const operationProperties: INodeProperties[] = [
 			},
 		],
 		default: 'get',
+	},
+	{
+		displayName: 'Operation',
+		name: 'operation',
+		type: 'options',
+		noDataExpression: true,
+		displayOptions: {
+			show: bookingDisplayOptions,
+		},
+		options: [
+			{
+				name: 'Check Slot Availability',
+				value: 'checkSlotAvailability',
+				description: 'Check whether a public booking slot is still available',
+				action: 'Check slot availability',
+			},
+			{
+				name: 'Get Monthly Availability',
+				value: 'getMonthlyAvailability',
+				description: 'Get public booking availability for a month',
+				action: 'Get monthly availability',
+			},
+		],
+		default: 'getMonthlyAvailability',
 	},
 	{
 		displayName: 'Simplify Output',
@@ -656,6 +699,106 @@ const invoiceProperties: INodeProperties[] = [
 	},
 ];
 
+const bookingProperties: INodeProperties[] = [
+	{
+		displayName: 'Organization ID',
+		name: 'organizationId',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: showForBookingCommon,
+		},
+		description: 'The public HearLink organization ID',
+	},
+	{
+		displayName: 'Clinic ID',
+		name: 'clinicId',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: showForBookingCommon,
+		},
+		description: 'The public HearLink clinic ID',
+	},
+	{
+		displayName: 'Appointment Type ID',
+		name: 'appointmentTypeId',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: showForBookingCommon,
+		},
+		description: 'The public HearLink appointment type ID',
+	},
+	{
+		displayName: 'Date',
+		name: 'date',
+		type: 'string',
+		required: true,
+		default: '',
+		placeholder: '2026-05-01',
+		displayOptions: {
+			show: showForBookingCommon,
+		},
+		description: 'The date to query in YYYY-MM-DD format. For monthly availability, HearLink uses this as the anchor date for the month response.',
+	},
+	{
+		displayName: 'Slot',
+		name: 'slot',
+		type: 'string',
+		required: true,
+		default: '',
+		placeholder: '16:00',
+		displayOptions: {
+			show: showForBookingCheckSlotAvailability,
+		},
+		description: 'The booking slot time in HH:mm format',
+	},
+	{
+		displayName: 'Consultant ID',
+		name: 'consultantId',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: showForBookingCheckSlotAvailability,
+		},
+		description: 'The public HearLink consultant ID to test for the selected slot',
+	},
+];
+
+function getBookingRequestBody(context: IExecuteFunctions, itemIndex: number, includeConsultant: boolean): IDataObject {
+	const payload = cleanObject({
+		id: getRequiredStringParameter(context, 'organizationId', itemIndex, 'Organization ID'),
+		date: getRequiredStringParameter(context, 'date', itemIndex, 'Date'),
+		clinic: getRequiredStringParameter(context, 'clinicId', itemIndex, 'Clinic ID'),
+		appointmentType: getRequiredStringParameter(
+			context,
+			'appointmentTypeId',
+			itemIndex,
+			'Appointment Type ID',
+		),
+		...(includeConsultant
+			? {
+				slot: getRequiredStringParameter(context, 'slot', itemIndex, 'Slot'),
+				consultant: getRequiredStringParameter(
+					context,
+					'consultantId',
+					itemIndex,
+					'Consultant ID',
+				),
+			}
+			: {}),
+	});
+
+	return {
+		data: payload,
+	};
+}
+
 function getRequiredStringParameter(
 	context: IExecuteFunctions,
 	parameterName: string,
@@ -865,9 +1008,20 @@ export class HearLink implements INodeType {
 				name: 'hearLinkApi',
 				required: true,
 				testedBy: 'testHearLinkApi',
+				displayOptions: {
+					show: {
+						resource: ['patient', 'appointment', 'invoice'],
+					},
+				},
 			},
 		],
-		properties: [...operationProperties, ...patientProperties, ...appointmentProperties, ...invoiceProperties],
+		properties: [
+			...operationProperties,
+			...patientProperties,
+			...appointmentProperties,
+			...invoiceProperties,
+			...bookingProperties,
+		],
 	};
 
 	methods = {
@@ -1000,6 +1154,24 @@ export class HearLink implements INodeType {
 						);
 						break;
 					}
+						case 'booking:getMonthlyAvailability': {
+							responseData = await hearLinkPublicBookingRequest.call(
+								this,
+								'POST',
+								'/getMonthlyAvailability',
+								getBookingRequestBody(this, itemIndex, false),
+							);
+							break;
+						}
+						case 'booking:checkSlotAvailability': {
+							responseData = await hearLinkPublicBookingRequest.call(
+								this,
+								'POST',
+								'/checkBookingWidgetSlotAvailability',
+								getBookingRequestBody(this, itemIndex, true),
+							);
+							break;
+						}
 					default:
 						throw new NodeOperationError(this.getNode(), `The operation ${operation} is not supported for ${resource}`, {
 							itemIndex,

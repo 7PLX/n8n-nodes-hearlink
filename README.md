@@ -24,6 +24,9 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 - Appointments
     - Create an appointment
     - Get an appointment
+- Booking
+    - Get monthly availability
+    - Check slot availability
 - Invoices
     - Get an invoice
 
@@ -42,6 +45,8 @@ Use the HearLink API credential for the HearLink node.
 2. In n8n, create a new **HearLink API** credential.
 3. Keep the default base URL unless HearLink gives you a different API hostname.
 4. Paste your API key into the credential.
+
+The public `Booking` resource in the HearLink node does not require credentials. These operations use undocumented public endpoints which may be subject to change without notice. Use the API credential for more stable access to patient and appointment data.
 
 ### HearLink Webhook API
 
